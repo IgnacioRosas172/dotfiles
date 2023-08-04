@@ -1,0 +1,24 @@
+#!/usr/bin/env fish
+
+function cleanup
+	lf-ueberzug-cleaner
+	kill $UEBERZUGPID
+	pkill -f "tail -f $LF_UEBERZUG_TEMPDIR/fifo"
+	rm -rf $LF_UEBERZUG_TEMPDIR
+end
+trap cleanup INT HUP
+
+# Set up temporary directory.
+set -gx LF_UEBERZUG_TEMPDIR (mktemp -d -t lf-ueberzug-XXXXXX)
+
+# Launch ueberzug.
+mkfifo $LF_UEBERZUG_TEMPDIR/fifo
+tail -f $LF_UEBERZUG_TEMPDIR/fifo | ueberzug layer --silent &
+set -gx UEBERZUGPID $last_pid
+
+# Add this script's directory to PATH so that the lf config will find
+# lf-ueberzug-cleaner and lf-ueberzgu-previewer. If no startup directory is
+# provided, start lf in the examples directory.
+set -gx PATH $PATH (dirname (status -f))/
+lf -config (dirname (status -f))/lfrc-ueberzug (commandline -p 1)/(dirname (status -f))/examples
+cleanup
